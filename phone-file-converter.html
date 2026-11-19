@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Easy File Converter + Scanner</title>
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding: 16px;
+      padding-bottom: 48px;
+      line-height: 1.4;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
+      padding-top: env(safe-area-inset-top);
+    }
+    .header h1 { font-size: 1.45rem; font-weight: 700; margin: 0 0 4px; }
+    .header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 28px 16px;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+      background: rgba(59, 130, 246, 0.05);
+    }
+    .drop-zone.active {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.15);
+    }
+    .drop-zone .icon { font-size: 2.4rem; margin-bottom: 6px; }
+    .drop-zone p { margin: 4px 0; color: var(--muted); }
+    .drop-zone strong { color: var(--accent); }
+    input[type="file"] { display: none; }
+
+    .controls { display: grid; gap: 14px; }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    select, input[type="range"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1rem;
+      appearance: none;
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    .range-row { display: flex; align-items: center; gap: 12px; }
+    .range-row input { flex: 1; padding: 0; height: 6px; }
+    .range-value {
+      min-width: 48px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 14px 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 10px;
+      font-size: 0.9rem;
+    }
+    .btn-small {
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      min-width: 36px;
+    }
+    .btn-camera {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      font-size: 1.05rem;
+      padding: 18px;
+    }
+
+    .file-list { display: flex; flex-direction: column; gap: 10px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid var(--border);
+    }
+    .file-item img {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #000;
+      flex-shrink: 0;
+    }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .file-status { font-size: 0.75rem; font-weight: 600; }
+    .status-ready { color: var(--muted); }
+    .status-converting { color: var(--accent); }
+    .status-done { color: var(--success); }
+    .status-error { color: var(--danger); }
+    .progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+      display: none;
+    }
+    .progress-bar.active { display: block; }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.25s;
+    }
+    .file-actions { display: flex; flex-direction: column; gap: 4px; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1e293b;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 100;
+      pointer-events: none;
+      max-width: 90%;
+      text-align: center;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .hint { font-size: 0.75rem; color: var(--muted); margin: 4px 0 0; }
+
+    .scanner-preview {
+      position: relative;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      aspect-ratio: 3/4;
+      display: none;
+    }
+    .scanner-preview.active { display: block; }
+    .scanner-preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scan-pages {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .scan-page {
+      position: relative;
+      flex-shrink: 0;
+      width: 72px;
+      height: 96px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+    .scan-page img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scan-page .page-num {
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      font-size: 0.7rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .scan-page .remove-page {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      background: var(--danger);
+      color: white;
+      border: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      padding: 0;
+      line-height: 1;
+    }
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 20px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Easy Converter + Scanner</h1>
+    <p>Convert images • Scan documents • Share anywhere</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="convert">Convert</button>
+    <button class="tab" data-tab="scan">Scan Document</button>
+  </div>
+
+  <!-- CONVERT TAB -->
+  <div id="convertTab">
+    <div class="card">
+      <div class="drop-zone" id="dropZone">
+        <div class="icon">📁</div>
+        <p><strong>Tap to select</strong> or drop files</p>
+        <p style="font-size:0.8rem">HEIC • JPG • PNG • WebP</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple />
+    </div>
+
+    <div class="card" id="settingsCard" style="display:none">
+      <div class="section-title">Output Settings</div>
+      <div class="controls">
+        <div>
+          <label for="format">Convert to</label>
+          <select id="format">
+            <option value="image/jpeg">JPG</option>
+            <option value="image/png">PNG</option>
+            <option value="image/webp">WebP</option>
+          </select>
+        </div>
+        <div>
+          <label>Quality <span class="range-value" id="qualityVal">85%</span></label>
+          <div class="range-row">
+            <input type="range" id="quality" min="10" max="100" value="85" />
+          </div>
+        </div>
+        <div>
+          <label>Max width/height <span class="range-value" id="sizeVal">Original</span></label>
+          <div class="range-row">
+            <input type="range" id="maxSize" min="0" max="4000" step="100" value="0" />
+          </div>
+          <p class="hint">0 = keep original size</p>
+        </div>
+        <div>
+          <label for="pdfSize">PDF page size</label>
+          <select id="pdfSize">
+            <option value="fit">Fit to image</option>
+            <option value="a4">A4</option>
+            <option value="letter">Letter</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary" id="convertBtn" disabled>Convert</button>
+          <button class="btn-secondary" id="zipBtn" disabled>ZIP All</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn-secondary" id="pdfBtn" disabled>Make PDF</button>
+          <button class="btn-danger" id="clearBtn">Clear All</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="listCard" style="display:none">
+      <div class="stats">
+        <span id="fileCount">0 files</span>
+        <span id="totalSize"></span>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+  </div>
+
+  <!-- SCAN TAB -->
+  <div id="scanTab" class="hidden">
+    <div class="card">
+      <div class="section-title">Document Scanner</div>
+
+      <div class="scanner-preview" id="cameraPreview">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+      </div>
+
+      <div class="scan-pages" id="scanPages"></div>
+
+      <div class="controls">
+        <button class="btn-camera" id="startCameraBtn">📷 Open Camera</button>
+        <button class="btn-primary hidden" id="captureBtn">Capture Page</button>
+        <button class="btn-secondary hidden" id="stopCameraBtn">Close Camera</button>
+
+        <div id="scanOptions" class="hidden">
+          <label>Enhancement</label>
+          <div class="filter-chips">
+            <button class="chip active" data-filter="original">Original</button>
+            <button class="chip" data-filter="grayscale">Grayscale</button>
+            <button class="chip" data-filter="contrast">High Contrast</button>
+            <button class="chip" data-filter="document">Document</button>
+          </div>
+
+          <div style="margin-top:12px">
+            <label for="scanPdfSize">PDF page size</label>
+            <select id="scanPdfSize">
+              <option value="a4">A4</option>
+              <option value="letter">Letter</option>
+              <option value="fit">Fit to image</option>
+            </select>
+          </div>
+
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn-success" id="savePdfBtn" disabled>Save PDF</button>
+            <button class="btn-primary" id="shareBtn" disabled>Share</button>
+          </div>
+          <button class="btn-danger" id="clearScanBtn" style="width:100%;margin-top:8px">Clear Pages</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="hint" style="margin:0;text-align:center">
+        Hold the phone steady so the document fills most of the frame.<br>
+        Capture multiple pages, then Save or Share as one PDF.
+      </p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <canvas id="processCanvas" class="hidden"></canvas>
+
+  <script>
+    const toast = document.getElementById('toast');
+    function showToast(msg, duration = 2500) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2500);
+    }
+    async function shareBlob(blob, filename, title = 'Document') {
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], filename, { type: blob.type });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title, text: 'Scanned document' });
+            return true;
+          } catch (err) {
+            if (err.name !== 'AbortError') console.error(err);
+            return false;
+          }
+        }
+      }
+      downloadBlob(blob, filename);
+      showToast('Saved (share not available)');
+      return false;
+    }
+
+    // Tabs
+    const tabs = document.querySelectorAll('.tab');
+    const convertTab = document.getElementById('convertTab');
+    const scanTab = document.getElementById('scanTab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        if (tab.dataset.tab === 'convert') {
+          convertTab.classList.remove('hidden');
+          scanTab.classList.add('hidden');
+          stopCamera();
+        } else {
+          convertTab.classList.add('hidden');
+          scanTab.classList.remove('hidden');
+        }
+      });
+    });
+
+    // ========== CONVERT TAB ==========
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const settingsCard = document.getElementById('settingsCard');
+    const listCard = document.getElementById('listCard');
+    const fileList = document.getElementById('fileList');
+    const convertBtn = document.getElementById('convertBtn');
+    const zipBtn = document.getElementById('zipBtn');
+    const pdfBtn = document.getElementById('pdfBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const formatSelect = document.getElementById('format');
+    const qualityInput = document.getElementById('quality');
+    const qualityVal = document.getElementById('qualityVal');
+    const maxSizeInput = document.getElementById('maxSize');
+    const sizeVal = document.getElementById('sizeVal');
+    const pdfSizeSelect = document.getElementById('pdfSize');
+    const fileCountEl = document.getElementById('fileCount');
+    const totalSizeEl = document.getElementById('totalSize');
+
+    let files = [];
+
+    function updateStats() {
+      const total = files.reduce((sum, f) => sum + f.file.size, 0);
+      fileCountEl.textContent = files.length + (files.length === 1 ? ' file' : ' files');
+      totalSizeEl.textContent = formatBytes(total);
+      const has = files.length > 0;
+      convertBtn.disabled = zipBtn.disabled = pdfBtn.disabled = !has;
+      settingsCard.style.display = listCard.style.display = has ? 'block' : 'none';
+    }
+
+    function statusText(s) {
+      return { ready: 'Ready', converting: 'Converting…', done: 'Done ✓', error: 'Failed' }[s] || s;
+    }
+
+    function renderList() {
+      fileList.innerHTML = '';
+      files.forEach((item, index) => {
+        const el = document.createElement('div');
+        el.className = 'file-item';
+        el.innerHTML = `
+          <img src="${item.previewUrl}" style="transform:rotate(${item.rotation}deg)" />
+          <div class="file-info">
+            <div class="file-name">${item.file.name}</div>
+            <div class="file-meta">${formatBytes(item.file.size)}${item.rotation ? ' · ' + item.rotation + '°' : ''}</div>
+            <div class="file-status status-${item.status}">${statusText(item.status)}</div>
+            <div class="progress-bar ${item.status === 'converting' ? 'active' : ''}">
+              <div class="progress-fill" style="width:${item.progress || 0}%"></div>
+            </div>
+          </div>
+          <div class="file-actions">
+            <button class="btn-secondary btn-small" data-action="rotate" data-index="${index}">↻</button>
+            <button class="btn-danger btn-small" data-action="remove" data-index="${index}">✕</button>
+          </div>`;
+        fileList.appendChild(el);
+      });
+      fileList.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const idx = +e.currentTarget.dataset.index;
+          if (e.currentTarget.dataset.action === 'remove') {
+            URL.revokeObjectURL(files[idx].previewUrl);
+            files.splice(idx, 1);
+            renderList();
+            updateStats();
+          } else {
+            files[idx].rotation = (files[idx].rotation + 90) % 360;
+            files[idx].status = 'ready';
+            files[idx].resultBlob = null;
+            renderList();
+          }
+        });
+      });
+    }
+
+    function addFiles(list) {
+      const newFiles = Array.from(list).filter(f =>
+        f.type.startsWith('image/') || /\.heic$/i.test(f.name) || /\.heif$/i.test(f.name)
+      );
+      if (!newFiles.length) return showToast('Please select image files');
+      newFiles.forEach(file => {
+        files.push({
+          id: Date.now() + Math.random(),
+          file,
+          previewUrl: URL.createObjectURL(file),
+          status: 'ready',
+          progress: 0,
+          resultBlob: null,
+          resultName: null,
+          rotation: 0
+        });
+      });
+      renderList();
+      updateStats();
+      showToast(`Added ${newFiles.length} file${newFiles.length > 1 ? 's' : ''}`);
+    }
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => { addFiles(e.target.files); fileInput.value = ''; });
+    ['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('active'); }));
+    ['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove('active'); }));
+    dropZone.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+
+    qualityInput.addEventListener('input', () => qualityVal.textContent = qualityInput.value + '%');
+    maxSizeInput.addEventListener('input', () => {
+      const v = +maxSizeInput.value;
+      sizeVal.textContent = v === 0 ? 'Original' : v + 'px';
+    });
+    clearBtn.addEventListener('click', () => {
+      files.forEach(f => URL.revokeObjectURL(f.previewUrl));
+      files = [];
+      renderList();
+      updateStats();
+      showToast('Cleared');
+    });
+
+    async function loadImage(file) {
+      if (file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name)) {
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+        return createImageBitmap(Array.isArray(converted) ? converted[0] : converted);
+      }
+      return createImageBitmap(file);
+    }
+
+    function processBitmap(bitmap, rotation, maxDim) {
+      const rad = rotation * Math.PI / 180;
+      const sin = Math.abs(Math.sin(rad));
+      const cos = Math.abs(Math.cos(rad));
+      let w = bitmap.width, h = bitmap.height;
+      let bw = Math.round(w * cos + h * sin);
+      let bh = Math.round(w * sin + h * cos);
+      let scale = 1;
+      if (maxDim > 0 && (bw > maxDim || bh > maxDim)) {
+        scale = Math.min(maxDim / bw, maxDim / bh);
+        bw = Math.round(bw * scale);
+        bh = Math.round(bh * scale);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = bw;
+      canvas.height = bh;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(bw / 2, bh / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(bitmap, -w / 2, -h / 2, w, h);
+      return canvas;
+    }
+
+    async function convertOne(item, format, quality, maxDim) {
+      item.status = 'converting';
+      item.progress = 15;
+      renderList();
+      try {
+        const bitmap = await loadImage(item.file);
+        item.progress = 45;
+        renderList();
+        const canvas = processBitmap(bitmap, item.rotation, maxDim);
+        item.progress = 75;
+        renderList();
+        const blob = await new Promise((res, rej) => {
+          canvas.toBlob(b => b ? res(b) : rej(), format, quality / 100);
+        });
+        const base = item.file.name.replace(/\.[^/.]+$/, '');
+        const ext = format === 'image/jpeg' ? 'jpg' : format.split('/')[1];
+        item.resultName = base + '.' + ext;
+        item.resultBlob = blob;
+        item.status = 'done';
+        item.progress = 100;
+        if (bitmap.close) bitmap.close();
+        renderList();
+        return blob;
+      } catch (err) {
+        item.status = 'error';
+        item.progress = 0;
+        renderList();
+        throw err;
+      }
+    }
+
+    convertBtn.addEventListener('click', async () => {
+      if (!files.length) return;
+      convertBtn.disabled = zipBtn.disabled = pdfBtn.disabled = true;
+      const format = formatSelect.value;
+      const quality = +qualityInput.value;
+      const maxDim = +maxSizeInput.value;
+      let success = 0;
+      for (const item of files) {
+        try {
+          if (item.status !== 'done' || !item.resultBlob) await convertOne(item, format, quality, maxDim);
+          downloadBlob(item.resultBlob, item.resultName);
+          success++;
+        } catch (e) {}
+      }
+      convertBtn.disabled = zipBtn.disabled = pdfBtn.disabled = false;
+      showToast(`Downloaded ${success} of ${files.length}`);
+    });
+
+    zipBtn.addEventListener('click', async () => {
+      if (!files.length) return;
+      convertBtn.disabled = zipBtn.disabled = pdfBtn.disabled = true;
+      showToast('Preparing ZIP…');
+      const format = formatSelect.value;
+      const quality = +qualityInput.value;
+      const maxDim = +maxSizeInput.value;
+      try {
+        const zip = new JSZip();
+        let success = 0;
+        for (const item of files) {
+          try {
+            if (item.status !== 'done' || !item.resultBlob) await convertOne(item, format, quality, maxDim);
+            zip.file(item.resultName, item.resultBlob);
+            success++;
+          } catch (e) {}
+        }
+        if (!success) return showToast('Nothing to zip');
+        const content = await zip.generateAsync({ type: 'blob' });
+        downloadBlob(content, 'converted-images.zip');
+        showToast(`ZIP ready (${success} files)`);
+      } catch (err) {
+        showToast('ZIP failed');
+      }
+      convertBtn.disabled = zipBtn.disabled = pdfBtn.disabled = false;
+    });
+
+    pdfBtn.addEventListener('click', async () => {
+      if (!files.length) return;
+      convertBtn.disabled = zipBtn.disabled = pdfBtn.disabled = true;
+      showToast('Creating PDF…');
+      try {
+        const { jsPDF } = window.jspdf;
+        const pageSize = pdfSizeSelect.value;
+        const maxDim = +maxSizeInput.value || 2000;
+        let pdf = null;
+        for (const item of files) {
+          item.status = 'converting';
+          item.progress = 20;
+          renderList();
+          const bitmap = await loadImage(item.file);
+          const canvas = processBitmap(bitmap, item.rotation, maxDim);
+          const imgData = canvas.toDataURL('image/jpeg', 0.88);
+          if (pageSize === 'fit') {
+            const orient = canvas.width >= canvas.height ? 'landscape' : 'portrait';
+            if (!pdf) pdf = new jsPDF({ orientation: orient, unit: 'px', format: [canvas.width, canvas.height] });
+            else pdf.addPage([canvas.width, canvas.height], orient);
+            pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+          } else {
+            if (!pdf) pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: pageSize });
+            else pdf.addPage(pageSize, 'portrait');
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const margin = 10;
+            const ratio = Math.min((pageW - margin * 2) / canvas.width, (pageH - margin * 2) / canvas.height);
+            const drawW = canvas.width * ratio;
+            const drawH = canvas.height * ratio;
+            pdf.addImage(imgData, 'JPEG', (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH);
+          }
+          item.status = 'done';
+          item.progress = 100;
+          if (bitmap.close) bitmap.close();
+          renderList();
+        }
+        pdf.save('converted-images.pdf');
+        showToast('PDF ready!');
+      } catch (err) {
+        showToast('PDF creation failed');
+      }
+      convertBtn.disabled = zipBtn.disabled = pdfBtn.disabled = false;
+    });
+
+    // ========== SCANNER ==========
+    const startCameraBtn = document.getElementById('startCameraBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const stopCameraBtn = document.getElementById('stopCameraBtn');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const scanPagesEl = document.getElementById('scanPages');
+    const scanOptions = document.getElementById('scanOptions');
+    const savePdfBtn = document.getElementById('savePdfBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const clearScanBtn = document.getElementById('clearScanBtn');
+    const scanPdfSize = document.getElementById('scanPdfSize');
+    const processCanvas = document.getElementById('processCanvas');
+
+    let stream = null;
+    let scanPages = [];
+    let currentFilter = 'original';
+
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentFilter = chip.dataset.filter;
+      });
+    });
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        });
+        cameraVideo.srcObject = stream;
+        cameraPreview.classList.add('active');
+        startCameraBtn.classList.add('hidden');
+        captureBtn.classList.remove('hidden');
+        stopCameraBtn.classList.remove('hidden');
+        scanOptions.classList.remove('hidden');
+      } catch (err) {
+        showToast('Camera access denied — using photo picker');
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment';
+        input.onchange = e => { if (e.target.files[0]) addScanPageFromFile(e.target.files[0]); };
+        input.click();
+        scanOptions.classList.remove('hidden');
+      }
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      cameraVideo.srcObject = null;
+      cameraPreview.classList.remove('active');
+      startCameraBtn.classList.remove('hidden');
+      captureBtn.classList.add('hidden');
+      stopCameraBtn.classList.add('hidden');
+    }
+
+    function applyFilter(ctx, width, height, filter) {
+      if (filter === 'original') return;
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        let r = data[i], g = data[i+1], b = data[i+2];
+        if (filter === 'grayscale' || filter === 'contrast' || filter === 'document') {
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          r = g = b = gray;
+        }
+        if (filter === 'contrast' || filter === 'document') {
+          const factor = filter === 'document' ? 1.6 : 1.35;
+          r = Math.min(255, Math.max(0, (r - 128) * factor + 128));
+          g = Math.min(255, Math.max(0, (g - 128) * factor + 128));
+          b = Math.min(255, Math.max(0, (b - 128) * factor + 128));
+        }
+        if (filter === 'document') {
+          const avg = (r + g + b) / 3;
+          if (avg > 180) r = g = b = 255;
+          else if (avg < 90) r = g = b = 0;
+        }
+        data[i] = r; data[i+1] = g; data[i+2] = b;
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    function capturePage() {
+      if (!stream) return;
+      const video = cameraVideo;
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (!w || !h) return showToast('Camera not ready');
+      processCanvas.width = w;
+      processCanvas.height = h;
+      const ctx = processCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      applyFilter(ctx, w, h, currentFilter);
+      const dataUrl = processCanvas.toDataURL('image/jpeg', 0.92);
+      scanPages.push({ dataUrl, width: w, height: h });
+      renderScanPages();
+      updateScanButtons();
+      showToast(`Page ${scanPages.length} captured`);
+    }
+
+    async function addScanPageFromFile(file) {
+      try {
+        const bitmap = await createImageBitmap(file);
+        processCanvas.width = bitmap.width;
+        processCanvas.height = bitmap.height;
+        const ctx = processCanvas.getContext('2d');
+        ctx.drawImage(bitmap, 0, 0);
+        applyFilter(ctx, bitmap.width, bitmap.height, currentFilter);
+        const dataUrl = processCanvas.toDataURL('image/jpeg', 0.92);
+        scanPages.push({ dataUrl, width: bitmap.width, height: bitmap.height });
+        if (bitmap.close) bitmap.close();
+        renderScanPages();
+        updateScanButtons();
+        showToast(`Page ${scanPages.length} added`);
+      } catch (err) {
+        showToast('Could not process image');
+      }
+    }
+
+    function renderScanPages() {
+      scanPagesEl.innerHTML = '';
+      scanPages.forEach((page, i) => {
+        const div = document.createElement('div');
+        div.className = 'scan-page';
+        div.innerHTML = `
+          <img src="${page.dataUrl}" alt="Page ${i+1}" />
+          <span class="page-num">${i+1}</span>
+          <button class="remove-page" data-index="${i}">✕</button>`;
+        scanPagesEl.appendChild(div);
+      });
+      scanPagesEl.querySelectorAll('.remove-page').forEach(btn => {
+        btn.addEventListener('click', e => {
+          scanPages.splice(+e.currentTarget.dataset.index, 1);
+          renderScanPages();
+          updateScanButtons();
+        });
+      });
+    }
+
+    function updateScanButtons() {
+      const has = scanPages.length > 0;
+      savePdfBtn.disabled = shareBtn.disabled = !has;
+    }
+
+    async function createScanPdf() {
+      if (!scanPages.length) return null;
+      const { jsPDF } = window.jspdf;
+      const pageSize = scanPdfSize.value;
+      let pdf = null;
+      for (const page of scanPages) {
+        if (pageSize === 'fit') {
+          const orient = page.width >= page.height ? 'landscape' : 'portrait';
+          if (!pdf) pdf = new jsPDF({ orientation: orient, unit: 'px', format: [page.width, page.height] });
+          else pdf.addPage([page.width, page.height], orient);
+          pdf.addImage(page.dataUrl, 'JPEG', 0, 0, page.width, page.height);
+        } else {
+          if (!pdf) pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: pageSize });
+          else pdf.addPage(pageSize, 'portrait');
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          const margin = 8;
+          const ratio = Math.min((pageW - margin * 2) / page.width, (pageH - margin * 2) / page.height);
+          const drawW = page.width * ratio;
+          const drawH = page.height * ratio;
+          pdf.addImage(page.dataUrl, 'JPEG', (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH);
+        }
+      }
+      return pdf;
+    }
+
+    startCameraBtn.addEventListener('click', startCamera);
+    captureBtn.addEventListener('click', capturePage);
+    stopCameraBtn.addEventListener('click', stopCamera);
+
+    savePdfBtn.addEventListener('click', async () => {
+      showToast('Creating PDF…');
+      try {
+        const pdf = await createScanPdf();
+        if (pdf) {
+          pdf.save(`scan-${new Date().toISOString().slice(0,10)}.pdf`);
+          showToast('PDF saved!');
+        }
+      } catch (err) {
+        showToast('Failed to create PDF');
+      }
+    });
+
+    shareBtn.addEventListener('click', async () => {
+      showToast('Preparing to share…');
+      try {
+        const pdf = await createScanPdf();
+        if (!pdf) return;
+        const blob = pdf.output('blob');
+        const filename = `scan-${new Date().toISOString().slice(0,10)}.pdf`;
+        const shared = await shareBlob(blob, filename, 'Scanned Document');
+        if (shared) showToast('Shared!');
+      } catch (err) {
+        showToast('Share failed');
+      }
+    });
+
+    clearScanBtn.addEventListener('click', () => {
+      scanPages = [];
+      renderScanPages();
+      updateScanButtons();
+      showToast('Pages cleared');
+    });
+  </script>
+</body>
+</html>
